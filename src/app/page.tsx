@@ -1,69 +1,31 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+import {useEffect,useState} from 'react';
+import {RotateCcw,Search} from 'lucide-react';
+
+type Team={id:number;name:string;arabicName:string;logo:string};
+type Analysis={teamA:any;teamB:any;finalPointsA:number;finalPointsB:number;spread:number;verdict:string;rows:any[];fixturesA:any[];fixturesB:any[];h2h:any;usage:any;apiInjuries:any;motivation:string};
+
+function TeamSearch({label,value,setTeam}:{label:string;value:string;setTeam:(v:Team)=>void}){
+  const [query,setQuery]=useState(value);const [suggestions,setSuggestions]=useState<Team[]>([]);const [open,setOpen]=useState(false);
+  useEffect(()=>{if(!query||query.length<2){setSuggestions([]);return}const id=setTimeout(async()=>{try{const r=await fetch(`/api/teams/search?q=${encodeURIComponent(query)}`);const j=await r.json();setSuggestions(j.teams??[])}catch{setSuggestions([])}},250);return()=>clearTimeout(id)},[query]);
+  return <div className="team-field"><input dir="auto" value={query} placeholder={label} onChange={e=>{setQuery(e.target.value);setOpen(true)}} onFocus={()=>setOpen(true)} />{open&&suggestions.length>0&&<div className="suggestions">{suggestions.map(s=><button key={s.id} className="suggestion" onClick={()=>{setTeam(s);setQuery(s.arabicName||s.name);setOpen(false)}}>{s.arabicName||s.name}<span className="mono" style={{float:'left',color:'#8E95A2'}}>#{s.id}</span></button>)}</div>}</div>
+}
+
+export default function Home(){
+ const [aName,setAName]=useState('');const [bName,setBName]=useState('');const [teamA,setTeamA]=useState<Team|null>(null);const [teamB,setTeamB]=useState<Team|null>(null);const [motivation,setMotivation]=useState('auto');const [injuryA,setInjuryA]=useState<boolean|null>(null);const [injuryB,setInjuryB]=useState<boolean|null>(null);const [defenseDeduct,setDefenseDeduct]=useState(true);const [loading,setLoading]=useState(false);const [error,setError]=useState('');const [analysis,setAnalysis]=useState<Analysis|null>(null);
+ const reset=()=>{setTeamA(null);setTeamB(null);setAName('');setBName('');setMotivation('auto');setInjuryA(null);setInjuryB(null);setDefenseDeduct(true);setAnalysis(null);setError('')};
+ const run=async()=>{if(!teamA||!teamB){setError('اختر الفريقين من نتائج البحث قبل تشغيل التحليل.');return}setLoading(true);setError('');try{const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({teamAId:teamA.id,teamAName:teamA.name,teamALogo:teamA.logo,teamBId:teamB.id,teamBName:teamB.name,teamBLogo:teamB.logo,motivationOverride:motivation,injuryAOverride:injuryA,injuryBOverride:injuryB,defensiveDeduction:defenseDeduct})});const j=await r.json();if(!r.ok)throw new Error(j.error||`خطأ HTTP ${r.status}`);setAnalysis(j)}catch(e){setError(e instanceof Error?e.message:String(e))}finally{setLoading(false)}};
+ const favored=analysis?(analysis.spread>0?teamA?.name:teamB?.name):'';
+ const fmt=(n:number)=>`${n>0?'＋':'−'}${Math.abs(n).toFixed(2)}`;
+ const motivationOptions=[['auto','اكتشاف تلقائي'],['team_a','دافع للفريق الأول'],['team_b','دافع للفريق الثاني'],['draw_ok','التعادل مرضي للطرفين'],['none','تحصيل حاصل']];
+ return <main><header className="utility"><div className="brand">مرصد التحليل الكمي للمباريات</div><div className="quota"><span>الاستدعاءات الحية <b className="mono">{analysis?.usage?.live_calls??0}</b></span><span className="cached">من ذاكرة SQLite <b className="mono">{analysis?.usage?.cached_calls??0}</b></span><button className="reset" onClick={reset} title="إعادة ضبط"><RotateCcw size={16}/></button></div></header>
+ <section className="context-bar"><div><div style={{fontSize:12,color:'#8E95A2',marginBottom:5}}>الفريق الأول / صاحب الأرض</div><TeamSearch label="ابحث بالعربية أو الإنجليزية" value={aName} setTeam={setTeamA}/></div><div><div style={{fontSize:12,color:'#8E95A2',marginBottom:5}}>الفريق الثاني / الضيف</div><TeamSearch label="ابحث بالعربية أو الإنجليزية" value={bName} setTeam={setTeamB}/></div><button className="run-button" onClick={run} disabled={loading}>{loading?'جارٍ جلب البيانات الحية...':'تشغيل التحليل الكمي'} </button></section>
+ <section className="controls"><div className="control-block"><div className="control-title">إصابة لاعب مؤثر — التحكم اليدوي</div><div className="toggle-row"><button className={`chip ${injuryA===true?'active':''}`} onClick={()=>setInjuryA(injuryA===true?null:true)}>الفريق الأول: {injuryA===true?'نشط':'تلقائي'}</button><button className={`chip ${injuryB===true?'active':''}`} onClick={()=>setInjuryB(injuryB===true?null:true)}>الفريق الثاني: {injuryB===true?'نشط':'تلقائي'}</button></div></div><div className="control-block"><div className="control-title">دافع الفوز</div><div className="toggle-row">{motivationOptions.map(([v,l])=><button key={v} className={`chip ${motivation===v?'active':''}`} onClick={()=>setMotivation(v)}>{l}</button>)}</div></div></section>
+ <section className="controls"><div className="control-block"><div className="control-title">احتساب الأهداف المستقبلة كخصم (المنطقي) / كإضافة</div><button className={`chip ${defenseDeduct?'active':''}`} onClick={()=>setDefenseDeduct(!defenseDeduct)}>{defenseDeduct?'خصم - مفعل':'إضافة + مفعل'}</button></div></section>
+ {error&&<div className="error">{error}</div>}
+ {analysis&&<><section className="scoreboard"><div className="team-score"><div className="score-label">{teamA?.arabicName||teamA?.name}</div><div className={`score mono ${analysis.spread>0?'winner':''}`}>{analysis.finalPointsA.toFixed(2)}</div>{analysis.spread>0&&<div className="goldbar"/>}</div><div className="team-score"><div className="score-label">{teamB?.arabicName||teamB?.name}</div><div className={`score mono ${analysis.spread<0?'winner':''}`}>{analysis.finalPointsB.toFixed(2)}</div>{analysis.spread<0&&<div className="goldbar"/>}</div><div className="verdict"><span className="mono">الفارق: {analysis.spread>0?'＋':'−'}{Math.abs(analysis.spread).toFixed(2)} نقطة</span> — {analysis.verdict}</div></section>
+ <section className="ledger"><div className="section-title"><h2>سجل التدقيق الكامل — 11 قاعدة</h2><span className="mono" style={{color:'#8E95A2',fontSize:12}}>H2H: {analysis.h2h?.teamAWins} — {analysis.h2h?.teamBWins}</span></div><div className="table-wrap"><table><thead><tr><th>المعيار</th><th>بيانات الفريق الأول</th><th>نقاط الفريق الأول</th><th>نقاط الفريق الثاني</th><th>بيانات الفريق الثاني</th></tr></thead><tbody>{analysis.rows.map((r:any)=><tr key={r.rule}><td><span className="mono" style={{color:'#8E95A2',marginInlineEnd:8}}>{String(r.rule).padStart(2,'0')}</span>{r.name}</td><td>{r.dataA}</td><td className={`mono delta ${r.pointsA>0?'positive':r.pointsA<0?'negative':'zero'}`}>{fmt(r.pointsA)}</td><td className={`mono delta ${r.pointsB>0?'positive':r.pointsB<0?'negative':'zero'}`}>{fmt(r.pointsB)}</td><td>{r.dataB}</td></tr>)}</tbody></table></div></section>
+ <section className="form-grid"><div className="form-team"><div className="section-title"><h2>{teamA?.arabicName||teamA?.name} — آخر 10 مباريات</h2></div><div className="ticker">{analysis.fixturesA.map((f:any)=><div className="fixture" key={f.fixtureId}><div className={`mono result-${f.result}`}>{f.goalsFor}-{f.goalsAgainst} <span className="badge">{f.isAway?'A':'H'}</span></div><div className="fixture-name">{f.opponentName}</div></div>)}</div></div><div className="form-team"><div className="section-title"><h2>{teamB?.arabicName||teamB?.name} — آخر 10 مباريات</h2></div><div className="ticker">{analysis.fixturesB.map((f:any)=><div className="fixture" key={f.fixtureId}><div className={`mono result-${f.result}`}>{f.goalsFor}-{f.goalsAgainst} <span className="badge">{f.isAway?'A':'H'}</span></div><div className="fixture-name">{f.opponentName}</div></div>)}</div></div></section></>}
+ </main>
 }
