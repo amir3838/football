@@ -11,6 +11,9 @@ async function get(path:string) {
   try{res=await fetch(base+path,{headers:{'x-apisports-key':key},cache:'no-store',signal:controller.signal})}catch(error){throw new Error(error instanceof Error&&error.name==='AbortError'?'انتهت مهلة API-Football (15 ثانية)':`تعذر الاتصال بـ API-Football: ${error instanceof Error?error.message:String(error)}`)}finally{clearTimeout(timeout)}
   usageRecord('live');
   const json=await res.json();
+  if(json.errors && typeof json.errors==='object' && json.errors.token){
+    throw new Error('مفتاح API-Football غير صالح أو مفقود: يرجى تحديث API_FOOTBALL_KEY بمفتاح اشتراك صحيح');
+  }
   if(!res.ok || json.errors && Object.keys(json.errors).length>0){throw new Error(`API-Football HTTP ${res.status}: ${JSON.stringify(json.errors??json)}`)}
   return json.response;
 }
